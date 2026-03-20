@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAPI 離線轉換神器</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Inter', -apple-system, sans-serif; 
+            background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+            color: #333; min-height: 100vh;
+            display: flex; justify-content: center; align-items: center; padding: 40px 20px;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+            width: 100%; max-width: 680px; padding: 40px; transition: transform 0.3s ease;
+        }
+        
+        /* Logo 與標題樣式 */
+        .logo-container { text-align: center; margin-bottom: 20px; }
+        .logo { max-width: 180px; height: auto; border-radius: 8px; }
+        h1 { font-size: 26px; font-weight: 800; color: #111; margin-bottom: 25px; text-align: center; letter-spacing: -0.5px;}
+        
+        /* 安全聲明區塊 */
+        .trust-badge {
+            background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 12px; padding: 18px 22px; margin-bottom: 30px;
+            font-size: 13.5px; color: #065f46; line-height: 1.6;
+        }
+        .trust-badge .trust-icon { font-weight: 800; font-size: 15px; margin-bottom: 6px; color: #047857;}
+        .trust-badge .warning-text { margin-top: 8px; color: #b45309; font-weight: 800; }
+
+        .section { margin-bottom: 25px; }
+        .section-title { font-size: 13px; font-weight: 800; color: #888; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;}
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+        
+        label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #444; }
+        input[type="text"]:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+        input[type="text"] {
+            width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 10px;
+            font-size: 14px; background: #fff; transition: all 0.2s; font-family: inherit;
+        }
+        
+        .info-box {
+            background: rgba(59, 130, 246, 0.06); border-left: 4px solid #3b82f6;
+            padding: 14px 18px; border-radius: 0 8px 8px 0; margin-bottom: 15px;
+            font-size: 13px; color: #1e293b; line-height: 1.6;
+        }
+        .info-box ul { margin-left: 20px; margin-top: 6px; margin-bottom: 10px; color: #475569; }
+        .links a { display: inline-block; margin-right: 15px; color: #2563eb; text-decoration: none; font-weight: 600; transition: 0.2s;}
+        .links a:hover { color: #1d4ed8; text-decoration: underline; }
+
+        .file-upload {
+            position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;
+            background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px;
+            padding: 25px; text-align: center; cursor: pointer; transition: all 0.2s; min-height: 100px;
+        }
+        .file-upload:hover { background: #f1f5f9; border-color: #94a3b8; }
+        .file-upload input[type="file"] {
+            position: absolute; top: 0; right: 0; min-width: 100%; min-height: 100%;
+            font-size: 100px; opacity: 0; cursor: pointer;
+        }
+        .file-upload-text { font-size: 15px; color: #64748b; font-weight: 600; pointer-events: none; transition: 0.2s; }
+        
+        button {
+            width: 100%; padding: 16px; background: #111; color: white; border: none;
+            border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer;
+            transition: all 0.2s; margin-top: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        button:hover { background: #333; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.2); }
+        button:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; box-shadow: none; color: #fff;}
+        
+        #logArea { 
+            margin-top: 25px; padding: 15px; background: #1e293b; color: #f8fafc; 
+            border-radius: 10px; font-family: monospace; font-size: 12px;
+            height: 150px; overflow-y: auto; line-height: 1.6; display: none;
+        }
+        .log-info { color: #cbd5e1; }
+        .log-success { color: #4ade80; font-weight: bold; }
+        .log-error { color: #f87171; font-weight: bold; }
+        
+        /* Footer 版權宣告樣式 */
+        .footer { text-align: center; color: #64748b; font-size: 12.5px; margin-top: 35px; font-weight: 500;}
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- 🌟 公司 Logo 圖片替換區塊 -->
+    <div class="logo-container">
+        <!-- 請將 src 裡頭的網址替換為你們公司的 Logo 外部圖片網址 -->
+        <img src="https://res.cloudinary.com/adhub-image/image/upload/v1745485622/adHub_logo_1_fjlohc.png" alt="公司 Logo" class="logo">
+    </div>
+
+    <h1>CAPI 離線轉換神器</h1>
+    
+    <div class="trust-badge">
+        <div class="trust-icon">🛡️ 企業級安全隱私聲明</div>
+        為了保護您的會員機密，本工具為純前端架構，<b>未連接任何代理商後台或第三方伺服器</b>。您的營業資料在點擊上傳的瞬間，僅會在「這台電腦的瀏覽器中」被轉作 SHA-256 不可逆亂碼並直傳 Meta。我們完全無從經手您的資料，請安心使用。
+        <div class="warning-text">⚠️ 關鍵提醒：API 對接將會被廣告阻擋軟體阻擋，請務必先暫停您的 AdBlock 等擴充功能再行上傳！</div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">1. Meta 驗證設定</div>
+        <div class="grid-2">
+            <div>
+                <label>像素 ID (Pixel ID)</label>
+                <input type="text" id="pixelId" placeholder="例如: 1234567890">
+            </div>
+            <div>
+                <label>授權金鑰 (Access Token)</label>
+                <input type="text" id="token" placeholder="EAAB...">
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">2. 欄位對應設定 (輸入資料表的所在英文字母列)</div>
+        <div class="grid-3">
+            <div>
+                <label>Email ✉️</label>
+                <input type="text" id="colEmail" value="A" placeholder="例: A">
+            </div>
+            <div>
+                <label>手機號碼 📱</label>
+                <input type="text" id="colPhone" value="B" placeholder="例: B">
+            </div>
+            <div>
+                <label>事件時間 🕒</label>
+                <input type="text" id="colEventTime" value="C" placeholder="例: C">
+            </div>
+            <div>
+                <label>事件名稱 🎯</label>
+                <input type="text" id="colEventName" value="D" placeholder="例: D (Purchase)">
+            </div>
+            <div>
+                <label>轉換金額 💰</label>
+                <input type="text" id="colValue" value="E" placeholder="例: E">
+            </div>
+            <div>
+                <label>幣別 💵</label>
+                <input type="text" id="colCurrency" value="F" placeholder="例: F (TWD)">
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">3. 上傳檔案 (.csv / .xlsx)</div>
+        <div class="info-box">
+            <b>💡 官方規範必備 6 大欄位：</b>
+            <ul>
+                <li>比對資料：需<b>Email</b> 或 <b>手機號碼</b> (Meta 隱私政策會藉此比對用戶)</li>
+                <li>事件資料：需<b>事件時間 (Event Time)</b> 與 <b>事件名稱 (Event Name)</b></li>
+                <li>價值資料：需<b>轉換金額 (Value)</b> 與 <b>幣別 (Currency) </b>供系統優化價值</li>
+            </ul>
+            <div class="links">
+                <a href="https://business.facebook.com/images/ads/signals/example_files/example_events_file.csv" target="_blank">📥 下載官方 CSV 範例檔</a>
+                <a href="https://developers.facebook.com/docs/marketing-api/conversions-api/offline-events?locale=zh_TW" target="_blank">📖 查看 Meta 官方要求文檔</a>
+            </div>
+        </div>
+
+        <div class="file-upload">
+            <input type="file" id="dataFile" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+            <span class="file-upload-text" id="fileNameText">點擊或拖曳選擇檔案</span>
+        </div>
+    </div>
+
+    <button id="uploadBtn" onclick="processAndUpload()">🚀 瀏覽器端加密並發送</button>
+
+    <div id="logArea"></div>
+
+    <!-- 🌟 Footer 資訊替換區塊 -->
+    <div class="footer">
+        &copy; <span id="currentYear"></span> adHub Inc. All rights reserved.
+    </div>
+</div>
+
+<script>
+    // 自動更新為今年年份
+    document.getElementById('currentYear').innerText = new Date().getFullYear();
+
+    const CONFIG_KEYS = ['pixelId','token','colEmail','colPhone','colEventTime','colEventName','colValue','colCurrency'];
+
+    window.onload = () => {
+        CONFIG_KEYS.forEach(id => {
+            if(localStorage.getItem(id)) document.getElementById(id).value = localStorage.getItem(id);
+        });
+    };
+
+    function saveSettings() {
+        CONFIG_KEYS.forEach(id => {
+            localStorage.setItem(id, document.getElementById(id).value);
+        });
+    }
+
+    document.getElementById('dataFile').addEventListener('change', function(e) {
+        const text = document.getElementById('fileNameText');
+        if(this.files && this.files.length > 0) {
+            text.innerText = '📁 已選擇：' + this.files[0].name;
+            text.style.color = '#10b981';
+        } else {
+            text.innerText = '點擊選擇檔案';
+            text.style.color = '#64748b';
+        }
+    });
+
+    const logArea = document.getElementById('logArea');
+    function log(msg, type = 'info') {
+        logArea.style.display = 'block';
+        logArea.innerHTML += `<div class="log-${type}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+        logArea.scrollTop = logArea.scrollHeight;
+    }
+
+    function colToIndex(col) {
+        if(!col) return -1;
+        col = col.toUpperCase().trim();
+        let index = 0;
+        for (let i = 0; i < col.length; i++) {
+            index = index * 26 + (col.charCodeAt(i) - 64);
+        }
+        return index - 1;
+    }
+
+    function normalizeHash(str, type) {
+        if (str === null || str === undefined || str === '') return '';
+        str = String(str).trim().toLowerCase();
+        
+        if (type === 'phone') {
+            str = str.replace(/[^0-9]/g, '');
+        }
+        if (!str) return '';
+        
+        return CryptoJS.SHA256(str).toString(CryptoJS.enc.Hex);
+    }
+
+    async function processAndUpload() {
+        const pixelId = document.getElementById('pixelId').value.trim();
+        const token = document.getElementById('token').value.trim();
+        const fileInput = document.getElementById('dataFile');
+        const btn = document.getElementById('uploadBtn');
+
+        if(!pixelId || !token) return alert('請填寫 Pixel ID 與授權金鑰！');
+        if(!fileInput.files.length) return alert('請先選擇要上傳的檔案！');
+        
+        saveSettings();
+        const file = fileInput.files[0];
+        
+        const emIdx = colToIndex(document.getElementById('colEmail').value);
+        const phIdx = colToIndex(document.getElementById('colPhone').value);
+        const timeIdx = colToIndex(document.getElementById('colEventTime').value);
+        const nameIdx = colToIndex(document.getElementById('colEventName').value);
+        const valIdx = colToIndex(document.getElementById('colValue').value);
+        const curIdx = colToIndex(document.getElementById('colCurrency').value);
+
+        btn.disabled = true;
+        btn.innerText = '處理中...';
+        logArea.innerHTML = '';
+        log('開始讀取檔案...', 'info');
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                const rows = XLSX.utils.sheet_to_json(worksheet, {header: 1, raw: false, defval: ""});
+                
+                log(`成功讀取表格，共 ${rows.length - 1} 筆資料，開始進行轉換處理...`, 'info');
+
+                const events = [];
+                
+                for (let i = 1; i < rows.length; i++) {
+                    let row = rows[i];
+                    if(row.length === 0) continue;
+
+                    let em = emIdx >= 0 ? normalizeHash(row[emIdx], 'email') : '';
+                    let ph = phIdx >= 0 ? normalizeHash(row[phIdx], 'phone') : '';
+                    
+                    if (!em && !ph) continue; 
+
+                    let userData = {};
+                    if(em) userData.em = [em];
+                    if(ph) userData.ph = [ph];
+                    
+                    let eventName = nameIdx >= 0 && row[nameIdx] ? String(row[nameIdx]).trim() : 'Purchase';
+                    let currency = curIdx >= 0 && row[curIdx] ? String(row[curIdx]).trim().toUpperCase() : 'TWD';
+                    let val = valIdx >= 0 ? parseFloat(String(row[valIdx]).replace(/,/g, '')) : 0;
+                    if(isNaN(val)) val = 0;
+
+                    let eventTime = Math.floor(Date.now() / 1000); 
+                    if (timeIdx >= 0 && row[timeIdx]) {
+                        let tVal = String(row[timeIdx]).trim();
+                        if (!isNaN(Number(tVal)) && Number(tVal) > 100000000) {
+                            eventTime = Number(tVal) > 1000000000000 ? Math.floor(Number(tVal)/1000) : Number(tVal);
+                        } else {
+                            let parsed = new Date(tVal).getTime();
+                            if (!isNaN(parsed)) eventTime = Math.floor(parsed / 1000);
+                        }
+                    }
+
+                    events.push({
+                        event_name: eventName,
+                        event_time: eventTime,
+                        action_source: 'physical_store', 
+                        user_data: userData,
+                        custom_data: { value: val, currency: currency }
+                    });
+                }
+
+                if(events.length === 0) {
+                    btn.disabled = false;
+                    btn.innerText = '🚀 瀏覽器端加密並發送';
+                    return log('❌ 找不到任何有效的顧客資料，請檢查 Email 與手機的對應字母是否正確。', 'error');
+                }
+
+                log(`👌 處理完成，總計 ${events.length} 筆有效事件，準備直傳 Meta 伺服器...`, 'info');
+
+                const batchSize = 1000;
+                let successCount = 0;
+
+                for (let i = 0; i < events.length; i += batchSize) {
+                    const chunk = events.slice(i, i + batchSize);
+                    log(`發送批次 ${Math.floor(i/batchSize) + 1} / ${Math.ceil(events.length/batchSize)} ...`, 'info');
+                    
+                    const res = await fetch(`https://graph.facebook.com/v19.0/${pixelId}/events?access_token=${token}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ data: chunk })
+                    });
+                    
+                    const json = await res.json();
+                    
+                    if(json.error) {
+                        log(`❌ Meta API 拒絕請求: ${json.error.message}`, 'error');
+                        btn.disabled = false;
+                        btn.innerText = '🚀 瀏覽器端加密並發送';
+                        return;
+                    } else {
+                        successCount += json.events_received;
+                    }
+                }
+
+                log(`✅ 全部上傳成功！共計 ${successCount} 筆事件已成功匯入 Meta。`, 'success');
+
+            } catch(err) {
+                log(`❌ 無法預期的錯誤: ${err.message}`, 'error');
+                console.error(err);
+            }
+
+            btn.disabled = false;
+            btn.innerText = '🚀 瀏覽器端加密並發送';
+        };
+        
+        reader.readAsArrayBuffer(file);
+    }
+</script>
+
+</body>
+</html>
